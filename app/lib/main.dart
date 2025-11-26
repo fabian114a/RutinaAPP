@@ -2,21 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'package:video_player/video_player.dart';
-
+import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
+AudioPlayer audioPlayer = AudioPlayer();
 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SharedPreferences prefs = await SharedPreferences.getInstance();
   bool isFirstTime = prefs.getBool('isFirstTime') ?? true;
+  bool isRegistered = prefs.getBool('isRegistered') ?? false;
 
-  runApp(MyApp(isFirstTime: isFirstTime));
+  // Si es el primer inicio o no está registrado, muestra la pantalla de bienvenida
+  // Si ya está registrado, redirígelo directamente a la pantalla de RutinaPantalla
+  runApp(MyApp(isFirstTime: isFirstTime, isRegistered: isRegistered));
 }
+
 
 class MyApp extends StatelessWidget {
   final bool isFirstTime;
+  final bool isRegistered;
 
-  MyApp({required this.isFirstTime});
+  MyApp({required this.isFirstTime, required this.isRegistered});
 
   @override
   Widget build(BuildContext context) {
@@ -25,51 +32,303 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: isFirstTime ? BienvenidaPantalla() : RutinaPantalla(),
+      // Si es el primer inicio, muestra la pantalla de bienvenida, 
+      // si no, y está registrado, lleva a RutinaPantalla
+      home: isFirstTime
+          ? BienvenidaPantalla()
+          : (isRegistered ? RutinaPantalla() : RegistroPantalla()),
+          routes: {
+              "/registro": (context) => RegistroPantalla(),
+              "/experiencia": (context) => ExperienciaPantalla(),
+              "/meta": (context) => MetaPantalla(),
+              "/rutina": (context) => RutinaPantalla(),
+              "/progreso": (context) => ProgresoPantalla(),
+              
+            },
     );
+    
   }
 }
 
 
+//PANTALLA DE BIENVENIDA//
 
 class BienvenidaPantalla extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [const Color.fromARGB(255, 5, 103, 184), Colors.lightBlueAccent],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      backgroundColor: Colors.grey[50],
+
+      body: Center(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(20),
+
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 500),
+
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+
+                // LOGO
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.asset(
+                    'assets/logo.png',
+                    width: 180,
+                  ),
+                ),
+
+                SizedBox(height: 30),
+
+                // TARJETA
+                Container(
+                  padding: EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 12,
+                        offset: Offset(0, 4),
+                      )
+                    ],
+                  ),
+
+                  child: Column(
+                    children: [
+                      Text(
+                        "Bienvenido a Rutina App",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 26,
+                          color: Colors.black87,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      SizedBox(height: 20),
+
+                      Text(
+                        "Tu compañero perfecto para mejorar tu condición física. "
+                        "Crea rutinas personalizadas según tu nivel, objetivo y progreso.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+
+                      SizedBox(height: 35),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            SharedPreferences prefs =
+                                await SharedPreferences.getInstance();
+
+                            await prefs.setBool('isFirstTime', false);
+
+                            Navigator.pushReplacementNamed(
+                                context, "/registro");
+                          },
+
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color.fromARGB(255, 50, 120, 185),
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(
+                                vertical: 16, horizontal: 40),
+                            textStyle: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 3,
+                          ),
+
+                          child: Text("Comenzar"),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
-        child: Center(
+      ),
+    );
+  }
+}
+
+//PANTALLA DE REGISTRO//
+
+class RegistroPantalla extends StatefulWidget {
+  @override
+  _RegistroPantallaState createState() => _RegistroPantallaState();
+}
+
+class _RegistroPantallaState extends State<RegistroPantalla> {
+  final TextEditingController _nombreController = TextEditingController();
+  final TextEditingController _edadController = TextEditingController();
+  final TextEditingController _pesoController = TextEditingController();
+  final TextEditingController _estaturaController = TextEditingController();
+
+  Future<void> _registrar() async {
+    if (_nombreController.text.isNotEmpty &&
+        _edadController.text.isNotEmpty &&
+        _pesoController.text.isNotEmpty &&
+        _estaturaController.text.isNotEmpty) {
+      
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('nombre', _nombreController.text);
+      await prefs.setString('edad', _edadController.text);
+      await prefs.setString('peso', _pesoController.text);
+      await prefs.setString('estatura', _estaturaController.text);
+
+      Navigator.pushReplacementNamed(context, "/experiencia");
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Por favor completa todos los campos"),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  Widget _campo(String label, IconData icon, TextEditingController controller,
+      {TextInputType type = TextInputType.text}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color.fromARGB(255, 40, 40, 40),
+            )),
+        SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: type,
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, color: Color.fromARGB(255, 50, 120, 185)),
+            filled: true,
+            fillColor: Colors.grey[100],
+            contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                  color: Color.fromARGB(255, 5, 103, 184), width: 2),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Image.asset('assets/logo.png', width: 200), 
-              SizedBox(height: 20),
-              Text(
-                'Bienvenido a Rutina App',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+            children: [
+              
+              // LOGO
+              AnimatedOpacity(
+                opacity: 1,
+                duration: Duration(milliseconds: 1800),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Image.asset(
+                        'assets/logo.png',
+                        width: 140,
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        "Registro de Usuario",
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromARGB(255, 5, 103, 184),
+                        ),
+                      )
+                    ],
+                  ),
+                ),
               ),
-              SizedBox(height: 40),
-              ElevatedButton(
-                onPressed: () async {
-                  SharedPreferences prefs = await SharedPreferences.getInstance();
-                  prefs.setBool('isFirstTime', false);  // Marcar como no primer inicio
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => RegistroPantalla()),
-                  );
-                },
-                child: Text('Comenzar'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 225, 232, 238), // Color de fondo
-                  foregroundColor: const Color.fromARGB(255, 117, 107, 212),
-                  padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                  textStyle: TextStyle(fontSize: 18),
+
+              SizedBox(height: 30),
+
+              // TARJETA
+              Container(
+                padding: EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    _campo("Nombre", Icons.person, _nombreController),
+                    SizedBox(height: 18),
+                    _campo("Edad", Icons.cake, _edadController,
+                        type: TextInputType.number),
+                    SizedBox(height: 18),
+                    _campo("Peso (kg)", Icons.monitor_weight, _pesoController,
+                        type: TextInputType.number),
+                    SizedBox(height: 18),
+                    _campo("Estatura (cm)", Icons.height, _estaturaController,
+                        type: TextInputType.number),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: 35),
+
+              // BOTÓN SIGUIENTE
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _registrar,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color.fromARGB(255, 5, 103, 184),
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    textStyle:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 4,
+                  ),
+                  child: Text("Siguiente"),
                 ),
               ),
             ],
@@ -80,118 +339,7 @@ class BienvenidaPantalla extends StatelessWidget {
   }
 }
 
-
-
-
-
-class RegistroPantalla extends StatefulWidget {
-  @override
-  _RegistroPantallaState createState() => _RegistroPantallaState();
-}
-
-class _RegistroPantallaState extends State<RegistroPantalla> {
-  final _nombreController = TextEditingController();
-  final _edadController = TextEditingController();
-  final _pesoController = TextEditingController();
-  final _estaturaController = TextEditingController();
-
-  void _registrar() async {
-    final nombre = _nombreController.text;
-    final edad = _edadController.text;
-    final peso = _pesoController.text;
-    final estatura = _estaturaController.text;
-
-    // Validaciones de datos numéricos
-    if (nombre.isNotEmpty && edad.isNotEmpty && peso.isNotEmpty && estatura.isNotEmpty) {
-      if (int.tryParse(edad) == null || double.tryParse(peso) == null || double.tryParse(estatura) == null) {
-        print("Por favor, ingresa valores válidos para edad, peso y estatura.");
-        return;
-      }
-
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      prefs.setString('nombre', nombre);
-      prefs.setString('edad', edad);
-      prefs.setString('peso', peso);
-      prefs.setString('estatura', estatura);
-      prefs.setBool('isRegistered', true); // ← marca que ya se registró
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => ExperienciaPantalla()),
-      );
-    } else {
-      print("Por favor, ingresa todos los datos.");
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Registro de Usuario"),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: <Widget>[
-            Image.asset('assets/logo.png', width: 150), 
-            SizedBox(height: 20),
-            // Campos de texto con validación y diseño
-            TextField(
-              controller: _nombreController,
-              decoration: InputDecoration(
-                labelText: 'Nombre',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            SizedBox(height: 15),
-            TextField(
-              controller: _edadController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Edad',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            SizedBox(height: 15),
-            TextField(
-              controller: _pesoController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Peso (kg)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            SizedBox(height: 15),
-            TextField(
-              controller: _estaturaController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Estatura (cm)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _registrar,
-              child: Text('Siguiente'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 50, 120, 185), // Color de fondo
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                textStyle: TextStyle(fontSize: 18),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-
-
-
+//PANTALLA DE EXPERIENCIA//
 
 class ExperienciaPantalla extends StatefulWidget {
   @override
@@ -201,98 +349,146 @@ class ExperienciaPantalla extends StatefulWidget {
 class _ExperienciaPantallaState extends State<ExperienciaPantalla> {
   String _experiencia = '';
 
-  // Función para navegar a la pantalla MetaPantalla
   void _cambiarMeta() async {
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  prefs.setString('experiencia', _experiencia); // 👈 Guarda la experiencia
-  Navigator.push(
-    context,
-    MaterialPageRoute(builder: (context) => MetaPantalla()),
-  );
-}
+    if (_experiencia.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Por favor selecciona tu nivel de experiencia")),
+      );
+      return;
+    }
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('experiencia', _experiencia);
+
+    Navigator.pushReplacementNamed(context, "/meta");
+  }
+
+  Widget _chip(String label) {
+    final bool activo = _experiencia == label;
+
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: activo ? FontWeight.bold : FontWeight.normal,
+          color: activo ? Colors.white : Colors.black87,
+        ),
+      ),
+      selected: activo,
+      selectedColor: Color.fromARGB(255, 50, 120, 185),
+      backgroundColor: Colors.grey[200],
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      onSelected: (_) {
+        setState(() {
+          _experiencia = label;
+        });
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: Text("Experiencia"),
+        backgroundColor: Color.fromARGB(255, 50, 120, 185),
+        elevation: 2,
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [const Color.fromARGB(255, 1, 89, 160), Colors.lightBlueAccent],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: <Widget>[
-              // Mostrar el logo en la parte superior
-              Image.asset('assets/logo.png', width: 150),
-              SizedBox(height: 20),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 500),
+            child: Column(
+              children: [
+                SizedBox(height: 15),
 
-              // Mostrar texto "Nivel de experiencia:"
-              Text(
-                "Nivel de experiencia:",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 10),
-
-              // Selección de experiencia con ChoiceChip
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: <Widget>[
-                  ChoiceChip(
-                    label: Text("Bajo"),
-                    selected: _experiencia == 'Bajo',
-                    onSelected: (selected) {
-                      setState(() {
-                        _experiencia = 'Bajo';
-                      });
-                    },
-                    selectedColor: Colors.blueAccent,
-                    backgroundColor: Colors.white,
+                // LOGO
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      'assets/logo.png',
+                      width: 140,
+                    ),
                   ),
-                  ChoiceChip(
-                    label: Text("Medio"),
-                    selected: _experiencia == 'Medio',
-                    onSelected: (selected) {
-                      setState(() {
-                        _experiencia = 'Medio';
-                      });
-                    },
-                    selectedColor: Colors.blueAccent,
-                    backgroundColor: Colors.white,
-                  ),
-                  ChoiceChip(
-                    label: Text("Alto"),
-                    selected: _experiencia == 'Alto',
-                    onSelected: (selected) {
-                      setState(() {
-                        _experiencia = 'Alto';
-                      });
-                    },
-                    selectedColor: Colors.blueAccent,
-                    backgroundColor: const Color.fromARGB(255, 247, 247, 248),
-                  ),
-                ],
-              ),
-              SizedBox(height: 30),
-
-              // Botón para cambiar de meta
-              ElevatedButton(
-                onPressed: _cambiarMeta,
-                child: Text('Siguiente'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 50, 120, 185), // Color de fondo
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                  textStyle: TextStyle(fontSize: 18),
                 ),
-              ),
-            ],
+
+                SizedBox(height: 30),
+
+                // TARJETA
+                Container(
+                  padding: EdgeInsets.symmetric(vertical: 25, horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 12,
+                        offset: Offset(0, 4),
+                      )
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        "Nivel de experiencia",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+
+                      SizedBox(height: 25),
+
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 15,
+                        runSpacing: 15,
+                        children: [
+                          _chip("Bajo"),
+                          _chip("Medio"),
+                          _chip("Alto"),
+                        ],
+                      ),
+
+                      SizedBox(height: 30),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _cambiarMeta,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                const Color.fromARGB(255, 50, 120, 185),
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            textStyle: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 3,
+                          ),
+                          child: Text("Siguiente"),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
       ),
@@ -301,11 +497,7 @@ class _ExperienciaPantallaState extends State<ExperienciaPantalla> {
 }
 
 
-
-
-
-
-
+//PANTALLA DE META//
 
 
 class MetaPantalla extends StatefulWidget {
@@ -316,104 +508,148 @@ class MetaPantalla extends StatefulWidget {
 class _MetaPantallaState extends State<MetaPantalla> {
   String _meta = '';
 
-  void _generarRutina() async {
-    if ( _meta.isNotEmpty) {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      prefs.setString('meta', _meta);
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => RutinaPantalla()),
+  Future<void> _generarRutina() async {
+    if (_meta.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Por favor selecciona tu meta")),
       );
-    } else {
-      print("Por favor, selecciona meta.");
+      return;
     }
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('meta', _meta);
+    await prefs.setBool('isRegistered', true);
+
+    Navigator.pushNamedAndRemoveUntil(context, "/rutina", (route) => false);
+  }
+
+  Widget _chip(String label) {
+    final bool active = _meta == label;
+
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: active ? FontWeight.bold : FontWeight.normal,
+          color: active ? Colors.white : Colors.black87,
+        ),
+      ),
+      selected: active,
+      selectedColor: Color.fromARGB(255, 50, 120, 185),
+      backgroundColor: Colors.grey[200],
+      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      onSelected: (_) {
+        setState(() => _meta = label);
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text(" Meta"),
+        title: Text("Meta"),
+        backgroundColor: Color.fromARGB(255, 50, 120, 185),
+        elevation: 2,
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [const Color.fromARGB(255, 1, 89, 160), Colors.lightBlueAccent],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: <Widget>[
-              // Mostrar el logo en la parte superior
-              Image.asset('assets/logo.png', width: 150), // Asegúrate de tener el logo en assets
-              SizedBox(height: 20), // Separar el logo de los demás elementos
 
-             
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 500),
 
-              // Mostrar texto "Meta:"
-              Text(
-                "Meta:",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 10), // Separar del siguiente widget
+            child: Column(
+              children: [
+                SizedBox(height: 20),
 
-              // Selección de meta con ChoiceChip
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: <Widget>[
-                  ChoiceChip(
-                    label: Text("Perder peso"),
-                    selected: _meta == 'Perder peso',
-                    onSelected: (selected) {
-                      setState(() {
-                        _meta = 'Perder peso';
-                      });
-                    },
-                    selectedColor: Colors.blueAccent,
-                    backgroundColor: Colors.white,
+                // LOGO
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      'assets/logo.png',
+                      width: 140,
+                    ),
                   ),
-                  ChoiceChip(
-                    label: Text("Ganar músculo"),
-                    selected: _meta == 'Ganar músculo',
-                    onSelected: (selected) {
-                      setState(() {
-                        _meta = 'Ganar músculo';
-                      });
-                    },
-                    selectedColor: Colors.blueAccent,
-                    backgroundColor: Colors.white,
-                  ),
-                  ChoiceChip(
-                    label: Text("Mantenerse"),
-                    selected: _meta == 'Mantenerse',
-                    onSelected: (selected) {
-                      setState(() {
-                        _meta = 'Mantenerse';
-                      });
-                    },
-                    selectedColor: Colors.blueAccent,
-                    backgroundColor: const Color.fromARGB(255, 247, 247, 248),
-                  ),
-                ],
-              ),
-              SizedBox(height: 30), // Separar del siguiente widget
-
-              // Botón para generar rutina
-              ElevatedButton(
-                onPressed: _generarRutina,
-                child: Text('Generar Rutina'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 50, 120, 185), // Color de fondo
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                  textStyle: TextStyle(fontSize: 18),
                 ),
-              ),
-            ],
+
+                SizedBox(height: 30),
+
+                // TARJETA BLANCA
+                Container(
+                  padding: EdgeInsets.symmetric(vertical: 25, horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 12,
+                        offset: Offset(0, 4),
+                      )
+                    ],
+                  ),
+
+                  child: Column(
+                    children: [
+                      Text(
+                        "¿Cuál es tu meta?",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+
+                      SizedBox(height: 25),
+
+                      Wrap(
+                        spacing: 15,
+                        runSpacing: 15,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          _chip("Perder peso"),
+                          _chip("Ganar músculo"),
+                          _chip("Mantenerse"),
+                        ],
+                      ),
+
+                      SizedBox(height: 30),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _generarRutina,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                Color.fromARGB(255, 50, 120, 185),
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            textStyle: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 3,
+                          ),
+                          child: Text("Generar rutina"),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: 30),
+              ],
+            ),
           ),
         ),
       ),
@@ -422,15 +658,7 @@ class _MetaPantallaState extends State<MetaPantalla> {
 }
 
 
-
-
-
-
-
-
-
-
-
+//PANTALLA DE RUTINA//
 
 class RutinaPantalla extends StatefulWidget {
   @override
@@ -457,7 +685,7 @@ class _RutinaPantallaState extends State<RutinaPantalla> {
       rutina = '''
 Ejercicios para Perder Peso:
 - Saltos Invertidos
-- Burpees
+- Skipping
 - Sentadillas
 - Mountain Climbers
 - Abdominales
@@ -492,50 +720,46 @@ Ejercicios para Mantenerse:
     );
   }
 
+  void _verProgreso() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ProgresoPantalla()),
+    );
+  }
+
   int calcularDuracionEjercicio(int edad, double peso, String experiencia) {
-  int tiempoBase = 20; // tiempo base en segundos
+    int tiempoBase = 20;
 
-  // Ajuste por experiencia
-  if (experiencia == 'Bajo') tiempoBase -= 5;
-  if (experiencia == 'Medio') tiempoBase += 0;
-  if (experiencia == 'Alto') tiempoBase += 10;
+    if (experiencia == 'Bajo') tiempoBase -= 5;
+    if (experiencia == 'Medio') tiempoBase += 0;
+    if (experiencia == 'Alto') tiempoBase += 10;
 
-  // Ajuste por edad
-  if (edad > 40) tiempoBase -= 5;
-  else if (edad < 25) tiempoBase += 5;
+    if (edad > 40) tiempoBase -= 5;
+    else if (edad < 25) tiempoBase += 5;
 
-  // Ajuste por peso
-  if (peso > 90) tiempoBase -= 5;
-  else if (peso < 60) tiempoBase += 5;
+    if (peso > 90) tiempoBase -= 5;
+    else if (peso < 60) tiempoBase += 5;
 
-  // Nunca menos de 10 segundos
-  if (tiempoBase < 10) tiempoBase = 10;
+    if (tiempoBase < 10) tiempoBase = 10;
 
-  return tiempoBase;
-}
+    return tiempoBase;
+  }
 
-
-
-
-  // ==========================
-  // Iniciar rutina según meta
-  // ==========================
-  void _comenzarRutina() async{
-
+  void _comenzarRutina() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
+
     int edad = int.parse(prefs.getString('edad') ?? '25');
     double peso = double.parse(prefs.getString('peso') ?? '70');
     String experiencia = prefs.getString('experiencia') ?? 'Medio';
 
     int tiempoRecomendado = calcularDuracionEjercicio(edad, peso, experiencia);
 
-
     List<Map<String, String>> ejercicios = [];
 
     if (meta == 'Perder peso') {
       ejercicios = [
         {'nombre': 'Saltos Invertidos', 'duracion': '$tiempoRecomendado', 'video': 'assets/jumping.mp4'},
-        {'nombre': 'Burpees', 'duracion': '$tiempoRecomendado', 'video': 'assets/jumping.mp4'},
+        {'nombre': 'Skipping', 'duracion': '$tiempoRecomendado', 'video': 'assets/skipping.mp4'},
         {'nombre': 'Sentadillas', 'duracion': '$tiempoRecomendado', 'video': 'assets/sentadilla.mp4'},
         {'nombre': 'Mountain Climbers', 'duracion': '$tiempoRecomendado', 'video': 'assets/MountainC.mp4'},
         {'nombre': 'Abdominales', 'duracion': '$tiempoRecomendado', 'video': 'assets/abdominal.mp4'},
@@ -552,80 +776,197 @@ Ejercicios para Mantenerse:
       ejercicios = [
         {'nombre': 'Saltos Invertidos', 'duracion': '$tiempoRecomendado', 'video': 'assets/jumping.mp4'},
         {'nombre': 'Flexiones de brazos', 'duracion': '$tiempoRecomendado', 'video': 'assets/flexiones.mp4'},
-        {'nombre': 'Plancha con flexion', 'duracion': '$tiempoRecomendado', 'imagen': 'assets/plancha.mp4'},
+        {'nombre': 'Plancha con flexion', 'duracion': '$tiempoRecomendado', 'video': 'assets/plancha.mp4'},
         {'nombre': 'Lunges', 'duracion': '$tiempoRecomendado', 'video': 'assets/lunges.mp4'},
         {'nombre': 'Sentadillas', 'duracion': '$tiempoRecomendado', 'video': 'assets/sentadilla.mp4'},
       ];
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ComenzarRutinaPantalla(ejercicios: ejercicios),
-      ),
-    );
+    Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ComenzarRutinaPantalla(ejercicios: ejercicios),
+        ),
+      );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Rutina Personalizada - $nombre"),
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.blue, Colors.lightBlueAccent],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: <Widget>[
-                Image.asset('assets/logo.png', width: 150),
-                const SizedBox(height: 20),
-                Text(
-                  'Rutina para: $meta',
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+ @override
+    Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: Colors.white,
+    appBar: AppBar(
+      title: Text("Rutina Personalizada - $nombre"),
+      centerTitle: true,
+      backgroundColor: Colors.indigo,
+      elevation: 0,
+    ),
+    body: SingleChildScrollView(
+      padding: EdgeInsets.all(20),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 500),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+
+              SizedBox(height: 20),
+
+              // LOGO
+              Image.asset("assets/logo.png", width: 120),
+
+              SizedBox(height: 20),
+
+              // TÍTULO PRINCIPAL
+              Text(
+                "Rutina para: $meta",
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.indigo,
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  rutina.isEmpty ? 'Cargando rutina...' : rutina,
-                  style: const TextStyle(fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+
+              SizedBox(height: 20),
+
+              // TARJETA DE RUTINA
+              Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 8,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 30),
-                ElevatedButton(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Ejercicios incluidos:",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    SizedBox(height: 10),
+
+                    rutina.isEmpty
+                        ? Text(
+                            "Cargando rutina...",
+                            style: TextStyle(fontSize: 18),
+                          )
+                        : Text(
+                            rutina,
+                            style: TextStyle(
+                              fontSize: 18,
+                              height: 1.5,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: 40),
+
+              // BOTÓN CAMBIAR META
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
                   onPressed: _cambiarMeta,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 174, 196, 196),
-                    padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                    padding: EdgeInsets.symmetric(vertical: 15),
+                    backgroundColor: Colors.indigo.shade50,
+                    foregroundColor: Colors.indigo.shade700,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
                   ),
-                  child: const Text('Cambiar de Meta', style: TextStyle(fontSize: 18)),
+                  child: Text(
+                    "Cambiar Meta",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 20),
-                ElevatedButton(
+              ),
+
+              SizedBox(height: 20),
+
+              // BOTÓN COMENZAR RUTINA
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
                   onPressed: _comenzarRutina,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color.fromARGB(255, 225, 232, 240),
-                    padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                    padding: EdgeInsets.symmetric(vertical: 15),
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4,
                   ),
-                  child: const Text('Comenzar Rutina', style: TextStyle(fontSize: 18)),
+                  child: Text(
+                    "Comenzar Rutina",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              ],
-            ),
+              ),
+
+              SizedBox(height: 20),
+
+              // BOTÓN VER PROGRESO
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _verProgreso,
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 15),
+                    backgroundColor: Colors.grey.shade200,
+                    foregroundColor: Colors.indigo,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
+                  ),
+                  child: Text(
+                    "Ver Progreso",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+
+              SizedBox(height: 40),
+            ],
           ),
         ),
       ),
-    );
-  }
-}
+    ),
+  );
+  }}
+
+
 
 // ============================
-// PANTALLA DE DESCANSO
+// PPANTALLA DE DESCANSO
 // ============================
+
+
 class DescansoPantalla extends StatefulWidget {
   final int siguienteIndice;
   final List<Map<String, String>> ejercicios;
@@ -643,6 +984,14 @@ class DescansoPantalla extends StatefulWidget {
 class _DescansoPantallaState extends State<DescansoPantalla> {
   int _tiempoRestante = 10;
   late Timer _timer;
+
+  final List<String> frasesMotivadoras = [
+    "Respira profundo…",
+    "Recarga tu energía…",
+    "Prepárate…",
+    "Tu cuerpo puede, tu mente también.",
+    "Vamos por el siguiente 📈",
+  ];
 
   @override
   void initState() {
@@ -687,7 +1036,11 @@ class _DescansoPantallaState extends State<DescansoPantalla> {
         content: const Text("Has terminado todos los ejercicios. 🎉"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
+            onPressed: () async {
+              SharedPreferences prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('isRegistered', true);
+              Navigator.pushNamedAndRemoveUntil(context, "/rutina", (route) => false);
+            },
             child: const Text("Finalizar"),
           ),
         ],
@@ -704,38 +1057,102 @@ class _DescansoPantallaState extends State<DescansoPantalla> {
   @override
   Widget build(BuildContext context) {
     double progreso = 1 - (_tiempoRestante / 10);
+    String frase = frasesMotivadoras[_tiempoRestante % frasesMotivadoras.length];
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset('assets/logo.png', height: 100),
-              const SizedBox(height: 40),
-              const Text("Tiempo de descanso", style: TextStyle(color: Colors.white, fontSize: 24)),
-              const SizedBox(height: 40),
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox(
-                    width: 150,
-                    height: 150,
-                    child: CircularProgressIndicator(
-                      value: progreso,
-                      strokeWidth: 10,
-                      color: Colors.blueAccent,
-                      backgroundColor: Colors.white24,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF0D47A1),
+              Color(0xFF1976D2),
+              Color(0xFF42A5F5),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                
+                // LOGO
+                Image.asset('assets/logo.png', height: 110),
+                const SizedBox(height: 40),
+
+                // TITULO
+                Text(
+                  "Tiempo de descanso",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
+                ),
+
+                const SizedBox(height: 40),
+
+                // CONTADOR CIRCULAR
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 190,
+                      height: 190,
+                      child: CircularProgressIndicator(
+                        value: progreso,
+                        strokeWidth: 12,
+                        color: Colors.white,
+                        backgroundColor: Colors.white24,
+                      ),
+                    ),
+                    Text(
+                      '$_tiempoRestante',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 50,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 45),
+
+                // TARJETA GLASS
+                Container(
+                  padding: EdgeInsets.symmetric(vertical: 18, horizontal: 26),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    frase,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontStyle: FontStyle.italic,
                     ),
                   ),
-                  Text('$_tiempoRestante', style: const TextStyle(color: Colors.white, fontSize: 36)),
-                ],
-              ),
-              const SizedBox(height: 40),
-              const Text("Prepárate para el siguiente ejercicio",
-                  style: TextStyle(color: Colors.white70, fontSize: 16)),
-            ],
+                ),
+
+                const SizedBox(height: 25),
+
+                // TEXTO ADICIONAL
+                const Text(
+                  "Prepárate para el siguiente ejercicio",
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -743,9 +1160,12 @@ class _DescansoPantallaState extends State<DescansoPantalla> {
   }
 }
 
+
 // ============================
 // PANTALLA DE EJECUCIÓN DE RUTINA
 // ============================
+
+
 class ComenzarRutinaPantalla extends StatefulWidget {
   final List<Map<String, String>> ejercicios;
   final int indiceActual;
@@ -764,6 +1184,8 @@ class _ComenzarRutinaPantallaState extends State<ComenzarRutinaPantalla> {
   late VideoPlayerController _videoController;
   late Timer _timer;
   int _tiempoRestante = 0;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _pausado = false;
 
   @override
   void initState() {
@@ -773,10 +1195,10 @@ class _ComenzarRutinaPantallaState extends State<ComenzarRutinaPantalla> {
 
   void _iniciarEjercicio() {
     final ejercicioActual = widget.ejercicios[widget.indiceActual];
-    _tiempoRestante = int.tryParse(ejercicioActual['duracion'] ?? '0') ?? 0;
+    _tiempoRestante = int.parse(ejercicioActual['duracion'] ?? '0');
 
     _videoController = VideoPlayerController.asset(ejercicioActual['video']!)
-      ..setLooping(true) // 👈 Reproduce en bucle
+      ..setLooping(true)
       ..initialize().then((_) {
         setState(() {});
         _videoController.play();
@@ -785,8 +1207,12 @@ class _ComenzarRutinaPantallaState extends State<ComenzarRutinaPantalla> {
   }
 
   void _iniciarTemporizador() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (_pausado) return;
+
       if (_tiempoRestante > 0) {
+        if (_tiempoRestante == 3) _reproducirTripleBeep();
+
         setState(() => _tiempoRestante--);
       } else {
         _timer.cancel();
@@ -796,17 +1222,50 @@ class _ComenzarRutinaPantallaState extends State<ComenzarRutinaPantalla> {
     });
   }
 
-  void _irADescanso() {
-    final siguienteIndice = widget.indiceActual + 1;
+  void _reproducirTripleBeep() async {
+    _audioPlayer.play(AssetSource('beep.mp3'));
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _audioPlayer.play(AssetSource('beep.mp3'));
+    });
+    Future.delayed(const Duration(milliseconds: 600), () {
+      _audioPlayer.play(AssetSource('beep.mp3'));
+    });
+  }
+
+  void _irADescanso() async {
+    final siguiente = widget.indiceActual + 1;
+
+    if (siguiente >= widget.ejercicios.length) {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+
+      int dias = prefs.getInt('diasEntrenados') ?? 0;
+      await prefs.setInt('diasEntrenados', dias + 1);
+      await prefs.setBool('isRegistered', true);
+
+      Navigator.pushNamedAndRemoveUntil(context, "/progreso", (route) => false);
+      return;
+    }
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => DescansoPantalla(
+        builder: (_) => DescansoPantalla(
           ejercicios: widget.ejercicios,
-          siguienteIndice: siguienteIndice,
+          siguienteIndice: siguiente,
         ),
       ),
     );
+  }
+
+  void _togglePausa() {
+    setState(() {
+      _pausado = !_pausado;
+      if (_pausado) {
+        _videoController.pause();
+      } else {
+        _videoController.play();
+      }
+    });
   }
 
   @override
@@ -819,47 +1278,359 @@ class _ComenzarRutinaPantallaState extends State<ComenzarRutinaPantalla> {
   @override
   Widget build(BuildContext context) {
     final ejercicio = widget.ejercicios[widget.indiceActual];
-    double progreso = (_tiempoRestante / (int.tryParse(ejercicio['duracion'] ?? '1') ?? 1)).clamp(0.0, 1.0);
+
+    double progreso =
+        (_tiempoRestante / (int.parse(ejercicio['duracion'] ?? '1')))
+            .clamp(0.0, 1.0);
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            Text(ejercicio['nombre']!, style: const TextStyle(color: Colors.white, fontSize: 24)),
-            const SizedBox(height: 20),
-            Expanded(
-              child: Center(
-                child: _videoController.value.isInitialized
-                    ? AspectRatio(
-                        aspectRatio: _videoController.value.aspectRatio,
-                        child: VideoPlayer(_videoController),
-                      )
-                    : const CircularProgressIndicator(),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0D47A1), Color(0xFF1976D2), Color(0xFF42A5F5)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+
+              // NOMBRE DEL EJERCICIO
+              Text(
+                ejercicio['nombre']!,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: 120,
-                  height: 120,
-                  child: CircularProgressIndicator(
-                    value: progreso,
-                    strokeWidth: 10,
-                    color: Colors.greenAccent,
-                    backgroundColor: Colors.white24,
+
+              const SizedBox(height: 25),
+
+              // VIDEO DENTRO DE TARJETA
+              Expanded(
+                child: Center(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 12,
+                            offset: Offset(0, 5))
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: _videoController.value.isInitialized
+                          ? AspectRatio(
+                              aspectRatio: _videoController.value.aspectRatio,
+                              child: VideoPlayer(_videoController),
+                            )
+                          : const CircularProgressIndicator(color: Colors.white),
+                    ),
                   ),
                 ),
-                Text('$_tiempoRestante s', style: const TextStyle(color: Colors.white, fontSize: 24)),
-              ],
-            ),
-            const SizedBox(height: 40),
-          ],
+              ),
+
+              const SizedBox(height: 15),
+
+              // TEMPORIZADOR CIRCULAR
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 150,
+                    height: 150,
+                    child: CircularProgressIndicator(
+                      value: progreso,
+                      strokeWidth: 12,
+                      color: Colors.greenAccent,
+                      backgroundColor: Colors.white24,
+                    ),
+                  ),
+                  Text(
+                    '$_tiempoRestante s',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 40,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 25),
+
+              // BOTÓN PAUSA / REANUDAR
+              GestureDetector(
+                onTap: _togglePausa,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 14, horizontal: 30),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _pausado ? Icons.play_arrow : Icons.pause,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        _pausado ? "Reanudar" : "Pausar",
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600),
+                      )
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 35),
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+
+//PANTALLA DE PROGRESO//
+
+
+class ProgresoPantalla extends StatefulWidget {
+  @override
+  _ProgresoPantallaState createState() => _ProgresoPantallaState();
+}
+
+class _ProgresoPantallaState extends State<ProgresoPantalla> {
+  int _diasEntrenados = 0;
+  String _meta = '';
+  double _porcentajeMeta = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarProgreso();
+  }
+
+  Future<void> _cargarProgreso() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    
+    setState(() {
+      _meta = prefs.getString('meta') ?? 'No definida';
+      _diasEntrenados = prefs.getInt('diasEntrenados') ?? 0;
+      _porcentajeMeta = (_diasEntrenados / 30) * 100;
+    });
+  }
+
+  // -----------------------------
+  // ❌ El botón de simular fue eliminado
+  // -----------------------------
+
+  // 🔘 Función para salir de la app
+  void _salirAplicacion() {
+    SystemNavigator.pop();   // Cierra la aplicación
+  }
+
+  // 🔘 Navegar a RutinaPantalla
+  void _irARutina() {
+    Navigator.pushNamedAndRemoveUntil(context, "/rutina", (route) => false);
+  }
+
+  @override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: Colors.white,
+    appBar: AppBar(
+      title: Text("Tu Progreso"),
+      centerTitle: true,
+      elevation: 0,
+      backgroundColor: Colors.indigo,
+    ),
+    body: SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          
+          // LOGO
+          Center(
+            child: Image.asset(
+              'assets/logo.png',
+              width: 120,
+            ),
+          ),
+          SizedBox(height: 20),
+
+          // TITULO
+          Text(
+            '¡Excelente trabajo!',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.indigo,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 10),
+          
+          Text(
+            "Has completado la Rutina (Día $_diasEntrenados)",
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+
+          SizedBox(height: 30),
+
+          // TARJETA DE PROGRESO
+          Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 8,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Meta:",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  _meta,
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.indigo,
+                  ),
+                ),
+
+                SizedBox(height: 20),
+
+                Text(
+                  "Progreso del mes:",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                SizedBox(height: 10),
+
+                LinearProgressIndicator(
+                  value: _porcentajeMeta / 100,
+                  minHeight: 12,
+                  backgroundColor: Colors.grey[300],
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.indigo),
+                ),
+
+                SizedBox(height: 10),
+
+                Text(
+                  '${_porcentajeMeta.toStringAsFixed(0)}% completado',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey[700],
+                  ),
+                ),
+
+                SizedBox(height: 10),
+
+                Text(
+                  "Días entrenados: $_diasEntrenados de 30",
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: 40),
+
+          // BOTONES
+          Column(
+            children: [
+              // BOTÓN IR A RUTINA
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _irARutina,
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    backgroundColor: Colors.indigo,
+                    elevation: 4,
+                  ),
+                  child: Text(
+                    "Ir a Rutina",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+
+              SizedBox(height: 20),
+
+              // BOTÓN SALIR
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _salirAplicacion,
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    backgroundColor: Colors.red.shade50,
+                    foregroundColor: Colors.red,
+                    elevation: 2,
+                  ),
+                  child: Text(
+                    "Salir de la aplicación",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
 }
